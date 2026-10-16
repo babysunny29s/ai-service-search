@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Lab — Profile Search</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --muted:#8a93a6; --text:#e6e9ef; --accent:#4f8cff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --border:#262b36; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; align-items:center; gap:16px; padding:12px 20px; border-bottom:1px solid var(--border); }
+  header h1 { font-size:16px; margin:0; }
+  header .right { margin-left:auto; font-size:12px; color:var(--muted); }
+  a { color:var(--accent); text-decoration:none; }
+  main { display:grid; grid-template-columns:minmax(420px, 1fr) minmax(420px, 1fr); gap:16px; padding:16px 20px 40px; }
+  @media (max-width: 1000px) { main { grid-template-columns:1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  label { font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:3px; }
+  label.inline { flex-direction:row; align-items:center; gap:6px; }
+  input, select, textarea { background:#0c0e12; color:var(--text); border:1px solid var(--border); border-radius:6px; padding:7px 9px; font:inherit; }
+  textarea { width:100%; resize:vertical; font:12.5px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  #system { min-height:330px; }
+  #user { min-height:200px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:7px 14px; font:inherit; cursor:pointer; }
+  button.secondary { background:transparent; border:1px solid var(--border); color:var(--text); }
+  button:disabled { opacity:.5; cursor:default; }
+  .muted { color:var(--muted); font-size:12px; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); }
+  .pill.ok { color:var(--ok); border-color:var(--ok); } .pill.bad { color:var(--bad); border-color:var(--bad); } .pill.warn { color:var(--warn); border-color:var(--warn); }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); }
+  .tabs button { background:transparent; color:var(--muted); border-radius:6px 6px 0 0; padding:6px 12px; }
+  .tabs button.active { color:var(--text); background:#0c0e12; border:1px solid var(--border); border-bottom-color:#0c0e12; margin-bottom:-1px; }
+  pre { margin:0; background:#0c0e12; border:1px solid var(--border); border-radius:8px; padding:12px; overflow:auto; max-height:70vh; font-size:12px; white-space:pre-wrap; word-break:break-word; }
+  .error { background:#2a1414; border:1px solid var(--bad); border-radius:8px; padding:8px 10px; white-space:pre-wrap; font-size:12px; max-height:220px; overflow:auto; }
+  .card { border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px; background:#12151b; }
+  .card h3 { margin:0; font-size:16px; }
+  .card .headline { color:var(--muted); margin:2px 0 6px; }
+  .card dl { display:grid; grid-template-columns:max-content 1fr; gap:2px 10px; margin:6px 0; font-size:13px; }
+  .card dt { color:var(--muted); } .card dd { margin:0; word-break:break-word; }
+  .card .profile-title { font-size:11px; letter-spacing:.12em; color:var(--muted); margin:10px 0 4px; }
+  .card p { margin:0 0 8px; }
+  .runs { display:flex; flex-direction:column; gap:4px; max-height:180px; overflow:auto; }
+  .runs button { text-align:left; background:#0c0e12; border:1px solid var(--border); color:var(--text); font-size:12px; padding:5px 8px; }
+  .runs button.active { border-color:var(--accent); }
+  .count { font-size:11px; color:var(--muted); text-align:right; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Prompt Lab</h1>
+  <a href="/">← Search UI</a>
+  <span class="right" id="info">loading…</span>
+</header>
+<main>
+  <section class="panel">
+    <div class="row">
+      <label style="flex:1">Load prompt
+        <select id="source"></select>
+      </label>
+      <button class="secondary" id="reload" title="Reload templates and recent real calls">↻</button>
+    </div>
+    <div class="row">
+      <label>Model <input id="model" style="width:190px"></label>
+      <label>Temperature <input id="temperature" type="number" step="0.1" min="0" max="2" style="width:90px"></label>
+      <label>Max tokens <input id="maxTokens" type="number" min="1" max="32000" style="width:100px"></label>
+      <label>Validate as
+        <select id="schemaName"><option value="">(none)</option></select>
+      </label>
+      <label class="inline"><input type="checkbox" id="jsonMode" checked> JSON mode</label>
+    </div>
+    <label>System prompt
+      <textarea id="system" spellcheck="false"></textarea>
+    </label>
+    <div class="count" id="systemCount"></div>
+    <label>User message
+      <textarea id="user" spellcheck="false"></textarea>
+    </label>
+    <div class="row">
+      <button id="run">Run (Ctrl+Enter)</button>
+      <button class="secondary" id="fmt">Format user JSON</button>
+      <button class="secondary" id="reset">Reset to selected</button>
+      <span class="muted">Edits are kept in this browser until you reset.</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="row" id="status"><span class="muted">Run a prompt to see the response.</span></div>
+    <div id="errors"></div>
+    <div class="tabs">
+      <button data-tab="pretty" class="active">Rendered</button>
+      <button data-tab="parsed">Parsed JSON</button>
+      <button data-tab="raw">Raw output</button>
+      <button data-tab="request">Request</button>
+    </div>
+    <div id="view"></div>
+    <div>
+      <div class="muted" style="margin-bottom:4px">Runs this session (click to view)</div>
+      <div class="runs" id="runs"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const DRAFT_KEY = "promptLab:draft";
+let templates = [], history = [], defaults = {}, runs = [], current = null, tab = "pretty";
+
+function sourceItem(id) {
+  if (id.startsWith("tpl:")) return templates.find(t => "tpl:" + t.id === id);
+  if (id.startsWith("hist:")) {
+    const h = history.find(h => "hist:" + h.id === id);
+    if (!h) return null;
+    let user = h.user;
+    try { user = JSON.stringify(JSON.parse(h.user), null, 2); } catch {}
+    return { system: h.system, user, maxTokens: h.maxTokens, schema: h.schema };
+  }
+}
+
+function fill(item) {
+  if (!item) return;
+  $("#system").value = item.system;
+  $("#user").value = item.user;
+  $("#maxTokens").value = item.maxTokens || 4096;
+  $("#schemaName").value = item.schema || "";
+  $("#model").value = defaults.model || "";
+  $("#temperature").value = defaults.temperature ?? 0.1;
+  saveDraft(); counts();
+}
+
+function saveDraft() {
+  const d = { source: $("#source").value };
+  for (const k of ["system", "user", "model", "temperature", "maxTokens", "schemaName"]) d[k] = $("#" + k).value;
+  d.jsonMode = $("#jsonMode").checked;
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+}
+
+function counts() {
+  const s = $("#system").value, u = $("#user").value;
+  $("#systemCount").textContent = `system ${s.length.toLocaleString()} chars · user ${u.length.toLocaleString()} chars · ≈${Math.round((s.length + u.length) / 4).toLocaleString()} tokens in`;
+}
+
+async function load(keepDraft) {
+  const [t, h] = await Promise.all([fetch("/prompt-lab/templates"), fetch("/prompt-lab/history")]);
+  if (!t.ok) { $("#info").textContent = "LLM not configured: " + (await t.text()); return; }
+  const tj = await t.json(); history = (await h.json()).items || [];
+  templates = tj.templates; defaults = { model: tj.model, temperature: tj.temperature };
+  $("#info").textContent = `Default model: ${tj.model} · temperature ${tj.temperature}`;
+  $("#schemaName").innerHTML = `<option value="">(none)</option>` + tj.schemas.map(s => `<option>${esc(s)}</option>`).join("");
+  const opts = [`<optgroup label="Production prompts">` + templates.map(t => `<option value="tpl:${esc(t.id)}">${esc(t.label)}</option>`).join("") + `</optgroup>`];
+  if (history.length) {
+    opts.push(`<optgroup label="Recent real pipeline calls">` + history.map(h => {
+      let q = ""; try { const u = JSON.parse(h.user); q = u.query || u.targetName || ""; } catch {}
+      const when = new Date(h.at).toLocaleTimeString();
+      return `<option value="hist:${esc(h.id)}">${esc(when)} · ${esc(h.schema)} · ${esc(q)}${h.error ? " · ERROR" : ""}</option>`;
+    }).join("") + `</optgroup>`);
+  }
+  $("#source").innerHTML = opts.join("");
+  const draft = keepDraft && JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+  if (draft && draft.system) {
+    if ([...$("#source").options].some(o => o.value === draft.source)) $("#source").value = draft.source;
+    for (const k of ["system", "user", "model", "temperature", "maxTokens", "schemaName"]) $("#" + k).value = draft[k] ?? "";
+    $("#jsonMode").checked = draft.jsonMode !== false;
+    counts();
+  } else {
+    fill(sourceItem($("#source").value));
+  }
+}
+
+function renderCandidate(c) {
+  const row = (k, v) => v == null || v === "" || (Array.isArray(v) && !v.length) ? "" : `<dt>${esc(k)}</dt><dd>${Array.isArray(v) ? v.map(esc).join("<br>") : esc(typeof v === "object" ? JSON.stringify(v) : v)}</dd>`;
+  const profile = c.profile || c.narrative || [];
+  return `<div class="card">
+    <h3>${esc(c.displayName || c.nameAsWritten || "?")}</h3>
+    <div class="headline">${esc(c.headline || "")}</div>
+    <dl>
+      ${row("confidence", c.confidence)}
+      ${row("note", c.disambiguationNote)}
+      ${row("nationality", c.nationality)}
+      ${row("occupation", c.occupation)}
+      ${row("knownFor", c.knownFor)}
+      ${row("sourceUrls", c.sourceUrls)}
+      ${row("sourceIds", c.sourceIds)}
+      ${row("imageSearchQuery", c.imageSearchQuery)}
+      ${row("tags", c.tags)}
+      ${c.facts?.length ? `<dt>facts</dt><dd>${c.facts.map(f => `${esc(f.field)}: ${esc(f.value)} <span class="muted">[${esc(f.sourceId)}]</span>`).join("<br>")}</dd>` : ""}
+      ${c.career?.length ? `<dt>career</dt><dd>${c.career.map(x => `${esc(x.period || "")} ${esc(x.title || "")} · ${esc(x.organization || "")}`).join("<br>")}</dd>` : ""}
+    </dl>
+    ${profile.length ? `<div class="profile-title">PROFILE</div>${(Array.isArray(profile) ? profile : [profile]).map(p => `<p>${esc(p)}</p>`).join("")}` : ""}
+  </div>`;
+}
+
+function render() {
+  const r = current;
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  if (!r) { $("#view").innerHTML = ""; return; }
+  if (r.failed) { $("#status").innerHTML = `<span class="pill bad">request failed</span>`; $("#errors").innerHTML = `<div class="error">${esc(r.failed)}</div>`; }
+  else {
+    const u = r.usage || {};
+    const parseOk = r.parsed != null;
+    $("#status").innerHTML = [
+      `<span class="pill">${esc(r.model)}</span>`,
+      `<span class="pill">${(r.latencyMs / 1000).toFixed(1)}s</span>`,
+      `<span class="pill">in ${u.prompt_tokens ?? "?"} · out ${u.completion_tokens ?? "?"} tok</span>`,
+      `<span class="pill ${r.finishReason === "stop" ? "ok" : "warn"}">finish: ${esc(r.finishReason)}</span>`,
+      `<span class="pill ${parseOk ? "ok" : "bad"}">${parseOk ? "JSON ok" : "JSON invalid"}</span>`,
+      r.request.schemaName ? `<span class="pill ${r.validationError ? "bad" : parseOk ? "ok" : "bad"}">${esc(r.request.schemaName)} ${r.validationError ? "invalid" : parseOk ? "valid" : "—"}</span>` : "",
+    ].join(" ");
+    $("#errors").innerHTML = [r.parseError, r.validationError].filter(Boolean).map(e => `<div class="error">${esc(e)}</div>`).join("");
+  }
+  let html = "";
+  if (tab === "raw") html = `<pre>${esc(r.content ?? r.failed ?? "")}</pre>`;
+  else if (tab === "parsed") html = `<pre>${esc(r.parsed != null ? JSON.stringify(r.parsed, null, 2) : "(not parseable)")}</pre>`;
+  else if (tab === "request") html = `<pre>${esc(JSON.stringify(r.request, null, 2))}</pre>`;
+  else {
+    const p = r.parsed;
+    if (!p) html = `<pre>${esc(r.content ?? r.failed ?? "")}</pre>`;
+    else {
+      const cands = Array.isArray(p.candidates) ? p.candidates : [];
+      if (p.searchQueries) html += `<div class="card"><dl><dt>searchQueries</dt><dd>${p.searchQueries.length ? p.searchQueries.map(esc).join("<br>") : "<span class='muted'>[] — answer from knowledge, no search</span>"}</dd>${p.reason ? `<dt>reason</dt><dd>${esc(p.reason)}</dd>` : ""}</dl></div>`;
+      html += cands.length ? cands.map(renderCandidate).join("") : `<p class="muted">No candidates array; see Parsed JSON.</p>`;
+    }
+  }
+  $("#view").innerHTML = html;
+}
+
+function renderRuns() {
+  $("#runs").innerHTML = runs.map((r, i) => {
+    const label = r.failed ? "failed" : `${(r.latencyMs / 1000).toFixed(1)}s · ${r.usage?.completion_tokens ?? "?"} tok · ${r.parsed?.candidates?.length ?? "-"} candidates`;
+    return `<button data-run="${i}" class="${r === current ? "active" : ""}">#${runs.length - i} ${esc(r.at)} · ${esc(r.request.schemaName || "free")} · ${esc(label)}</button>`;
+  }).join("") || `<span class="muted">none yet</span>`;
+}
+
+async function run() {
+  const btn = $("#run");
+  const request = {
+    system: $("#system").value,
+    user: $("#user").value,
+    model: $("#model").value.trim() || null,
+    temperature: $("#temperature").value === "" ? null : Number($("#temperature").value),
+    maxTokens: Number($("#maxTokens").value) || 4096,
+    jsonMode: $("#jsonMode").checked,
+    schemaName: $("#schemaName").value || null,
+  };
+  btn.disabled = true;
+  const started = Date.now();
+  const tick = setInterval(() => { btn.textContent = `Running… ${((Date.now() - started) / 1000).toFixed(0)}s`; }, 250);
+  let r;
+  try {
+    const resp = await fetch("/prompt-lab/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
+    const data = await resp.json().catch(() => ({ detail: resp.statusText }));
+    r = resp.ok ? data : { failed: typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail ?? data) };
+  } catch (e) {
+    r = { failed: String(e) };
+  } finally {
+    clearInterval(tick); btn.disabled = false; btn.textContent = "Run (Ctrl+Enter)";
+  }
+  r.request = request; r.at = new Date().toLocaleTimeString();
+  runs.unshift(r); runs = runs.slice(0, 20); current = r;
+  render(); renderRuns();
+}
+
+$("#source").addEventListener("change", () => fill(sourceItem($("#source").value)));
+$("#reset").addEventListener("click", () => fill(sourceItem($("#source").value)));
+$("#reload").addEventListener("click", () => load(true));
+$("#run").addEventListener("click", run);
+$("#fmt").addEventListener("click", () => {
+  try { $("#user").value = JSON.stringify(JSON.parse($("#user").value), null, 2); saveDraft(); }
+  catch (e) { alert("User message is not valid JSON: " + e.message); }
+});
+document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !$("#run").disabled) run(); });
+for (const id of ["system", "user", "model", "temperature", "maxTokens", "schemaName", "jsonMode"]) {
+  $("#" + id).addEventListener("input", () => { saveDraft(); counts(); });
+  $("#" + id).addEventListener("change", saveDraft);
+}
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => { tab = b.dataset.tab; render(); }));
+$("#runs").addEventListener("click", e => {
+  const b = e.target.closest("[data-run]"); if (!b) return;
+  current = runs[Number(b.dataset.run)]; render(); renderRuns();
+});
+load(true).then(renderRuns);
+</script>
+</body>
+</html>

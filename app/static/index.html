@@ -1,0 +1,984 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Service Search — Test UI</title>
+<style>
+  :root {
+    --bg:#f4f6fa; --panel:#ffffff; --soft:#f0f3f8; --text:#141a26; --muted:#5b6578; --border:#dde3ec;
+    --accent:#2f6fed; --accent-soft:#e6eefe; --ok:#12805c; --ok-soft:#e3f5ee; --warn:#a15c00; --warn-soft:#fff3dc;
+    --bad:#c4291c; --bad-soft:#fde9e7; --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  }
+  [data-theme=dark] {
+    --bg:#0f1218; --panel:#171b23; --soft:#1e2430; --text:#e8ecf3; --muted:#9aa4b6; --border:#2a3140;
+    --accent:#5b8dff; --accent-soft:#1d2a47; --ok:#3fbf8a; --ok-soft:#14302a; --warn:#e0a640; --warn-soft:#352a14;
+    --bad:#ff6b5e; --bad-soft:#3a1916; --shadow:none;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  a { color:var(--accent); text-decoration:none; word-break:break-word; }
+  a:hover { text-decoration:underline; }
+  button, input, select, textarea { font:inherit; color:inherit; }
+
+  /* header + tabs */
+  header { background:var(--panel); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
+  .top { max-width:1280px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .brand { font-weight:700; font-size:17px; display:flex; align-items:center; gap:8px; }
+  .brand .dot { width:10px; height:10px; border-radius:50%; background:var(--accent); }
+  .health { display:flex; gap:8px; flex-wrap:wrap; margin-left:auto; }
+  .tabs { max-width:1280px; margin:0 auto; padding:0 24px; display:flex; gap:4px; }
+  .tab { background:none; border:0; border-bottom:3px solid transparent; padding:10px 14px; cursor:pointer; color:var(--muted); font-weight:600; }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tab:hover { color:var(--text); }
+
+  main { max-width:1280px; margin:0 auto; padding:20px 24px 80px; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; box-shadow:var(--shadow); }
+  .page { display:none; } .page.active { display:block; }
+  h3.sec { font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:22px 0 10px; display:flex; align-items:center; gap:8px; }
+  h3.sec:first-child { margin-top:0; }
+
+  /* forms */
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .grid-filters { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px; margin-top:12px; }
+  label.f { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--muted); }
+  input[type=text], input[type=number], select, textarea { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:9px 12px; outline:none; }
+  input[type=text]:focus, select:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  input.big { flex:1; min-width:260px; font-size:17px; padding:11px 14px; }
+  .seg { display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .seg label { padding:9px 14px; cursor:pointer; font-size:14px; color:var(--muted); }
+  .seg input { display:none; }
+  .seg input:checked + span { color:var(--accent); font-weight:600; }
+  .seg label:has(input:checked) { background:var(--accent-soft); }
+  .btn { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 18px; cursor:pointer; font-weight:600; }
+  .btn:disabled { opacity:.55; cursor:default; }
+  .btn.ghost { background:var(--panel); color:var(--text); border:1px solid var(--border); font-weight:500; }
+  .btn.ghost:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+  .btn.sm { padding:6px 12px; font-size:13px; }
+  details.filters > summary { cursor:pointer; color:var(--muted); margin-top:10px; font-size:14px; }
+  .hint { font-size:13px; color:var(--muted); }
+
+  /* chips */
+  .chip { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px; font-size:12.5px; font-weight:600; background:var(--soft); color:var(--muted); border:1px solid var(--border); white-space:nowrap; }
+  .chip.ok { background:var(--ok-soft); color:var(--ok); border-color:transparent; }
+  .chip.warn { background:var(--warn-soft); color:var(--warn); border-color:transparent; }
+  .chip.bad { background:var(--bad-soft); color:var(--bad); border-color:transparent; }
+  .chip.info { background:var(--accent-soft); color:var(--accent); border-color:transparent; }
+
+  /* status / meta */
+  .status { margin:16px 0 0; display:flex; align-items:center; gap:10px; color:var(--muted); min-height:24px; }
+  .spinner { width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .meta { display:flex; flex-wrap:wrap; gap:10px; margin:16px 0; }
+  .stat { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 14px; min-width:110px; }
+  .stat b { display:block; font-size:18px; }
+  .stat span { font-size:12px; color:var(--muted); }
+  .cost-table { width:100%; border-collapse:collapse; font-size:13px; margin:0 0 16px; background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .cost-table th, .cost-table td { padding:8px 12px; text-align:right; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .cost-table th:nth-child(1), .cost-table td:nth-child(1), .cost-table th:nth-child(2), .cost-table td:nth-child(2) { text-align:left; }
+  .cost-table td:nth-child(2) { white-space:normal; max-width:420px; }
+  .cost-table td:nth-child(2) .hint { font-size:12px; margin-top:2px; word-break:break-word; }
+  .cost-table th { font-size:12px; color:var(--muted); font-weight:600; background:var(--soft); }
+  .cost-table tfoot td { font-weight:700; border-bottom:0; }
+  .notice { border-radius:10px; padding:12px 14px; margin:12px 0; }
+  .notice.warn { background:var(--warn-soft); color:var(--warn); }
+  .notice.bad { background:var(--bad-soft); color:var(--bad); white-space:pre-wrap; }
+  .notice.info { background:var(--accent-soft); color:var(--text); }
+
+  /* result layout */
+  .layout { display:grid; grid-template-columns:320px 1fr; gap:16px; align-items:start; }
+  @media (max-width: 900px) { .layout { grid-template-columns:1fr; } }
+  .list { display:flex; flex-direction:column; gap:8px; position:sticky; top:110px; max-height:calc(100vh - 130px); overflow:auto; }
+  .item { display:flex; gap:12px; align-items:center; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--panel); cursor:pointer; text-align:left; width:100%; }
+  .item:hover { border-color:var(--accent); }
+  .item.active { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .item .name { font-weight:650; }
+  .item .sub { font-size:13px; color:var(--muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .av { width:48px; height:48px; border-radius:10px; object-fit:cover; background:var(--soft); flex:none; display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--muted); font-size:18px; }
+  .av.lg { width:120px; height:120px; border-radius:14px; font-size:40px; }
+
+  .detail-head { display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+  .detail-head h2 { margin:0; font-size:24px; line-height:1.25; }
+  .detail-head .headline { color:var(--muted); font-size:16px; margin:4px 0 10px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .conf { display:flex; align-items:center; gap:10px; margin:10px 0 4px; }
+  .bar { width:180px; height:8px; border-radius:4px; background:var(--soft); overflow:hidden; }
+  .bar > i { display:block; height:100%; border-radius:4px; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+
+  .facts { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+  .fact { background:var(--soft); border-radius:10px; padding:10px 12px; }
+  .fact .k { font-size:12px; color:var(--muted); display:flex; justify-content:space-between; gap:6px; }
+  .fact .v { font-weight:600; }
+  .profile p { margin:0 0 10px; }
+  .timeline { list-style:none; margin:0; padding:0 0 0 14px; border-left:2px solid var(--border); }
+  .timeline li { position:relative; padding:0 0 12px 14px; }
+  .timeline li::before { content:""; position:absolute; left:-21px; top:7px; width:10px; height:10px; border-radius:50%; background:var(--accent); }
+  .timeline .when { font-size:12.5px; color:var(--muted); }
+
+  .photos { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; }
+  .ph { position:relative; display:block; border-radius:10px; overflow:hidden; border:1px solid var(--border); background:var(--soft); aspect-ratio:1; }
+  .ph img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .15s; }
+  .ph:hover img { transform:scale(1.05); }
+  .ph .tag { position:absolute; left:6px; bottom:6px; font-size:11px; padding:1px 6px; border-radius:6px; background:rgba(0,0,0,.6); color:#fff; }
+  .ph.page { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:10px; text-align:center; text-decoration:none; color:var(--muted); font-size:12px; }
+  .ph.page:hover { text-decoration:none; border-color:var(--accent); color:var(--accent); }
+  .ph.page .host { font-weight:600; color:var(--text); word-break:break-all; line-height:1.3; }
+
+  .sources { display:flex; flex-direction:column; gap:8px; }
+  .src { display:flex; gap:12px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--panel); }
+  .src .ico { width:34px; height:34px; border-radius:8px; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none; font-size:13px; }
+  .src .t { font-weight:600; }
+  .src .u { font-size:13px; }
+  .src .s { font-size:13px; color:var(--muted); margin-top:2px; }
+
+  /* identified (image search / identify) */
+  .people { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
+  .person { border:1px solid var(--border); border-radius:12px; padding:14px; background:var(--panel); }
+  .person h4 { margin:0; font-size:17px; }
+  .person .phead { display:flex; gap:12px; align-items:center; margin-bottom:8px; }
+  .person .plabel { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:12px 0 6px; }
+  .person .photos { grid-template-columns:repeat(3,1fr); }
+  .socmini { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; }
+  .socmini a { display:flex; gap:8px; align-items:center; padding:6px 8px; border:1px solid var(--border); border-radius:8px; text-decoration:none; color:var(--text); font-size:13px; min-width:0; overflow:hidden; }
+  .socmini a:hover { border-color:var(--accent); }
+  .socmini .ico { width:26px; height:26px; border-radius:6px; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none; font-size:11px; }
+  .socmini .hint { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width:100px; }
+
+  /* image upload */
+  .drop { border:2px dashed var(--border); border-radius:12px; padding:22px; text-align:center; cursor:pointer; color:var(--muted); display:flex; gap:18px; align-items:center; justify-content:center; min-height:160px; }
+  .drop.over { border-color:var(--accent); background:var(--accent-soft); }
+  .drop img { max-height:180px; max-width:260px; border-radius:10px; }
+  .checks { display:flex; gap:16px; flex-wrap:wrap; font-size:14px; }
+
+  /* chat */
+  .chatbox { border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .chatlog { display:flex; flex-direction:column; gap:10px; padding:14px; max-height:460px; overflow:auto; background:var(--soft); }
+  .msg { max-width:85%; padding:10px 14px; border-radius:14px; white-space:pre-wrap; }
+  .msg.user { align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:4px; }
+  .msg.assistant { align-self:flex-start; background:var(--panel); border:1px solid var(--border); border-bottom-left-radius:4px; }
+  .msg .cites { margin-top:8px; font-size:13px; white-space:normal; }
+  .msg .cites a { display:block; }
+  .msg .m { font-size:12px; color:var(--muted); margin-top:6px; white-space:normal; }
+  .msg .cost-table { margin:8px 0 0; font-size:12px; }
+  .msg .cost-table td:nth-child(2) { max-width:220px; }
+  .chatform { display:flex; gap:8px; padding:10px; border-top:1px solid var(--border); background:var(--panel); }
+  .chatform input { flex:1; }
+
+  /* steps */
+  .steps { display:grid; grid-template-columns:240px 1fr; gap:16px; align-items:start; }
+  @media (max-width: 900px) { .steps { grid-template-columns:1fr; } }
+  .steplist { display:flex; flex-direction:column; gap:6px; }
+  .step { text-align:left; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--panel); cursor:pointer; }
+  .step b { display:block; font-size:14px; }
+  .step span { font-size:12px; color:var(--muted); }
+  .step.active { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+
+  .hist { display:flex; gap:12px; align-items:center; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--panel); cursor:pointer; margin-bottom:8px; }
+  .hist:hover { border-color:var(--accent); }
+
+  details.raw { margin-top:18px; }
+  details.raw summary { cursor:pointer; color:var(--muted); font-size:14px; }
+  pre { background:var(--soft); border:1px solid var(--border); border-radius:10px; padding:14px; overflow:auto; max-height:520px; font-size:12.5px; }
+  .empty { text-align:center; color:var(--muted); padding:40px 10px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="brand"><span class="dot"></span> AI Service Search</div>
+    <a href="/prompt-lab">Prompt Lab</a>
+    <a href="/docs" target="_blank">API docs</a>
+    <div class="health" id="health"><span class="chip">đang kiểm tra…</span></div>
+    <button class="btn ghost sm" id="theme" title="Đổi giao diện sáng/tối">◐</button>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="name">Tìm theo tên</button>
+    <button class="tab" data-tab="image">Tìm bằng ảnh</button>
+    <button class="tab" data-tab="steps">API từng bước</button>
+    <button class="tab" data-tab="history">Lịch sử & chat</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ======== name search ======== -->
+  <section class="page active" id="page-name">
+    <form class="panel" id="nameForm">
+      <div class="row">
+        <input class="big" type="text" name="query" placeholder="Nhập tên người, ví dụ: Sơn Tùng M-TP" required minlength="2" autofocus>
+        <button class="btn" type="submit">Tìm hồ sơ</button>
+        <button class="btn" type="button" id="nameRefresh" style="background:#0f766e" title="Bỏ cache 24h, chạy lại Serper + AI">↻ Làm mới</button>
+      </div>
+      <details class="filters"><summary>Bộ lọc (tùy chọn)</summary><div class="grid-filters" data-filters></div></details>
+      <p class="hint" style="margin:10px 0 0">Hai lần search (Wikipedia/LinkedIn/Facebook rồi Instagram/TikTok/X). AI gộp người trùng. Bấm <b>Tìm thêm hồ sơ</b> nếu muốn thêm người khác. <b>Làm mới</b> bỏ cache 24h và chạy lại. <b>Tìm sâu</b> trên người được chọn để lấy tiểu sử, facts, ảnh và bài viết.</p>
+    </form>
+    <div class="status" id="nameStatus"></div>
+    <div id="nameOut"></div>
+  </section>
+
+  <!-- ======== image search ======== -->
+  <section class="page" id="page-image">
+    <form class="panel" id="imageForm">
+      <div class="drop" id="drop">
+        <input type="file" name="image" accept="image/jpeg,image/png,image/webp" hidden>
+        <div id="dropText">Kéo thả ảnh vào đây hoặc <b style="color:var(--accent)">bấm để chọn ảnh</b><div class="hint">jpeg, png, webp · tối đa 5 MB · ảnh không được lưu lại</div></div>
+      </div>
+      <div class="grid-filters">
+        <label class="f">Chú thích (tùy chọn)<input type="text" name="caption" placeholder="ví dụ: ca sĩ tại concert"></label>
+      </div>
+      <h3 class="sec" style="margin-top:16px">Cảnh báo khuôn mặt từ client (chỉ làm giảm độ tin cậy)</h3>
+      <div class="checks">
+        <label><input type="checkbox" name="w" value="no_face"> Không thấy mặt (×0.6)</label>
+        <label><input type="checkbox" name="w" value="multiple_faces"> Nhiều người (×0.8)</label>
+        <label><input type="checkbox" name="w" value="face_too_small"> Mặt quá nhỏ (×0.85)</label>
+      </div>
+      <details class="filters"><summary>Bộ lọc (tùy chọn)</summary><div class="grid-filters" data-filters></div></details>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" type="submit">Tìm người trong ảnh</button>
+        <button class="btn ghost" type="button" id="identifyOnly">Nhận diện nhanh (AI + ảnh + mạng xã hội)</button>
+      </div>
+    </form>
+    <div class="status" id="imageStatus"></div>
+    <div id="imageOut"></div>
+  </section>
+
+  <!-- ======== steps ======== -->
+  <section class="page" id="page-steps">
+    <div class="steps">
+      <div class="steplist" id="stepList"></div>
+      <div>
+        <form class="panel" id="stepForm"></form>
+        <div class="status" id="stepStatus"></div>
+        <div id="stepOut"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== history ======== -->
+  <section class="page" id="page-history">
+    <div class="layout">
+      <div class="panel"><h3 class="sec">Đã lưu</h3><div id="histList" class="hint">…</div></div>
+      <div id="histOut"><div class="panel empty">Chọn một bản ghi bên trái để xem hồ sơ và tiếp tục chat.</div></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const safeUrl = (u) => /^https?:\/\//i.test(u || "") ? u : null;
+const link = (u, text) => safeUrl(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(text || u)}</a>` : esc(text || u || "");
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+
+// ---------- theme ----------
+const setTheme = (t) => { document.documentElement.dataset.theme = t; localStorage.setItem("uiTheme", t); };
+setTheme(localStorage.getItem("uiTheme") || "light");
+$("#theme").onclick = () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+
+// ---------- tabs ----------
+$$(".tab").forEach(t => t.onclick = () => showTab(t.dataset.tab));
+function showTab(name) {
+  $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  $$(".page").forEach(p => p.classList.toggle("active", p.id === `page-${name}`));
+  if (name === "history") loadHistory();
+}
+
+// ---------- filters ----------
+const FILTERS = [["location", "Nơi sống"], ["education", "Học vấn"], ["jobTitle", "Chức danh"], ["company", "Công ty"], ["field", "Lĩnh vực / ngành"], ["occupation", "Nghề nghiệp"]];
+$$("[data-filters]").forEach(el => el.innerHTML = FILTERS.map(([k, l]) => `<label class="f">${l}<input type="text" data-f="${k}"></label>`).join(""));
+const readFilters = (form) => Object.fromEntries($$("[data-f]", form).map(i => [i.dataset.f, i.value.trim()]).filter(([, v]) => v));
+
+// ---------- api ----------
+async function api(path, body, method, retries) {
+  const verb = method || (body ? "POST" : "GET");
+  if (retries == null) retries = verb === "GET" ? 6 : 3;
+  const opts = body instanceof FormData
+    ? { method: "POST", body, cache: "no-store" }
+    : body
+      ? { method: verb, headers: { "content-type": "application/json" }, body: JSON.stringify(body), cache: "no-store" }
+      : { method: verb, cache: "no-store" };
+  let last = null;
+  for (let i = 0; i <= retries; i++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), verb === "GET" ? 20000 : 12000);
+    try {
+      const res = await fetch(path, { ...opts, signal: ctrl.signal });
+      const data = res.status === 204 ? {} : await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail ?? data)}`);
+      return { status: res.status, data };
+    } catch (e) {
+      last = e;
+      if (e && e.message && String(e.message).startsWith("HTTP ")) throw e;
+      if (i === retries) throw new Error("Failed to fetch: mất kết nối tới server (timeout/tunnel). Giữ trang và thử lại.");
+      await sleep(800 * (i + 1));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw last;
+}
+
+const STAGES = { queued: "đang chờ", planning: "lập kế hoạch", analyzing: "AI đang phân tích", searching: "đang tìm trên Google", enriching: "tìm bổ sung", verifying: "kiểm tra ảnh & nguồn", identifying: "AI đang nhận diện ảnh", running: "đang chạy" };
+async function pollSearch(first, onStage) {
+  let { status, data } = first;
+  while (status === 202) {
+    if (typeof onStage === "function") onStage(STAGES[data.stage] || data.stage);
+    await sleep(1000);
+    ({ status, data } = await api(data.resultUrl || `/v1/people-search/${data.searchId}`, null, "GET"));
+  }
+  return data;
+}
+
+// ---------- status line ----------
+function statusLine(el) {
+  let timer = null;
+  const stop = () => clearInterval(timer);
+  return {
+    run(text, started) {
+      stop();
+      const tick = () => el.innerHTML = `<span class="spinner"></span> ${esc(text)} <span>· ${((Date.now() - started) / 1000).toFixed(1)}s</span>`;
+      tick(); timer = setInterval(tick, 200);
+    },
+    done(text) { stop(); el.innerHTML = text ? `<span class="chip ok">✓</span> ${esc(text)}` : ""; },
+    clear() { stop(); el.innerHTML = ""; },
+  };
+}
+
+async function health() {
+  try {
+    const { data } = await api("/health");
+    const servers = Object.entries(data.mcp.connected);
+    const errs = Object.keys(data.mcp.errors || {});
+    $("#health").innerHTML = [
+      servers.length ? `<span class="chip ok">Search: ${esc(servers.map(([k]) => k).join(", "))}</span>` : `<span class="chip bad">Search: chưa kết nối</span>`,
+      data.llm ? `<span class="chip ok" title="${esc(data.llm)}">AI: ${esc(data.llm.split(":").pop())}</span>` : `<span class="chip bad">AI: chưa cấu hình</span>`,
+      errs.length ? `<span class="chip warn" title="${esc(JSON.stringify(data.mcp.errors))}">MCP lỗi: ${esc(errs.join(", "))}</span>` : "",
+    ].join("");
+  } catch { $("#health").innerHTML = `<span class="chip bad">Không kết nối được server</span>`; }
+}
+
+// ---------- small components ----------
+function embeddableImage(url) {
+  if (!url || !safeUrl(url)) return false;
+  if (/\.(jpe?g|png|webp|gif)(\?|$)/i.test(url)) return true;
+  try {
+    return /(cdninstagram|fbcdn|fbsbx|scontent|licdn|tiktokcdn|encrypted-tbn|wikimedia|googleusercontent)/i.test(new URL(url).hostname);
+  } catch { return false; }
+}
+function avatar(url, name, cls = "") {
+  const first = (name || "").trim()[0] || "?";
+  const letter = /[\p{L}\p{N}]/u.test(first) ? first.toUpperCase() : "?";
+  return embeddableImage(url)
+    ? `<img class="av ${cls}" src="${esc(url)}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;av ${cls}&quot;>${letter}</div>'">`
+    : `<div class="av ${cls}">${letter}</div>`;
+}
+const confColor = (v) => v >= 0.7 ? "var(--ok)" : v >= 0.4 ? "var(--warn)" : "var(--bad)";
+const confBar = (v) => `<span class="bar"><i style="width:${Math.round((v || 0) * 100)}%;background:${confColor(v || 0)}"></i></span><b>${Math.round((v || 0) * 100)}%</b>`;
+const STATUS = { resolved: ["ok", "Đã xác định"], ambiguous: ["warn", "Nhiều người trùng tên"], no_match: ["bad", "Không tìm thấy"] };
+const statusChip = (s) => { const [c, t] = STATUS[s] || ["", s]; return `<span class="chip ${c}">${esc(t)}</span>`; };
+
+const PLATFORM = {
+  facebook: ["#1877f2", "f"], instagram: ["#d62976", "ig"], linkedin: ["#0a66c2", "in"], github: ["#24292f", "gh"], x: ["#111", "X"],
+  tiktok: ["#111", "tt"], threads: ["#111", "th"], pinterest: ["#e60023", "P"], reddit: ["#ff4500", "r"], youtube: ["#ff0000", "▶"],
+  wikipedia: ["#5b6168", "W"], website: ["#12805c", "⌂"], academic: ["#7a4bd0", "🎓"], web: ["#7b8494", "🌐"],
+};
+const platformChip = (p) => { const [c] = PLATFORM[p] || PLATFORM.web; return `<span class="chip" style="color:${c};border-color:${c}55">${esc(p)}</span>`; };
+const TYPE_VI = { website: "Website chính thức", wikipedia: "Wikipedia", web: "Trang web", academic: "Học thuật" };
+
+function sourcesList(sources) {
+  if (!sources?.length) return `<div class="hint">Không có nguồn.</div>`;
+  return `<div class="sources">${sources.map(s => {
+    const [color, label] = PLATFORM[s.type] || PLATFORM.web;
+    return `<div class="src"><div class="ico" style="background:${color}">${esc(label)}</div><div style="min-width:0">
+      <div class="t">${esc(s.title || host(s.url))}</div>
+      <div class="u">${esc(TYPE_VI[s.type] || s.type)} · ${link(s.url, host(s.url) + new URL(s.url, "http://x").pathname.replace(/\/$/, ""))}</div>
+      ${s.snippet ? `<div class="s">${esc(s.snippet)}</div>` : ""}
+    </div></div>`;
+  }).join("")}</div>`;
+}
+
+function photoGrid(photos) {
+  const valid = (photos || []).filter(p => safeUrl(p.url));
+  if (!valid.length) return `<div class="hint">Chưa có ảnh.</div>`;
+  return `<div class="photos">${valid.map(p => {
+    const tag = p.faceMatch != null ? `mặt ${Math.round(p.faceMatch * 100)}%` : p.fromSource ? "từ nguồn" : "gợi ý";
+    const href = esc(safeUrl(p.pageUrl) || p.url);
+    if (!embeddableImage(p.url)) {
+      let path = "";
+      try { path = new URL(p.url).pathname.replace(/\/$/, ""); } catch {}
+      return `<a class="ph page" href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener noreferrer" title="${esc(p.title || p.url)}">
+        <span class="host">${esc(host(p.url) + path)}</span>
+        <span class="tag">${esc(tag)}</span></a>`;
+    }
+    return `<a class="ph" href="${href}" target="_blank" rel="noopener noreferrer" title="${esc(p.title || "")}">
+      <img src="${esc(p.url)}" data-fb="${esc(safeUrl(p.fallbackUrl) || "")}" alt="" loading="lazy" referrerpolicy="no-referrer"
+        onerror="if (this.dataset.fb && this.src !== this.dataset.fb) this.src = this.dataset.fb; else this.closest('.ph').remove()">
+      <span class="tag">${esc(tag)}</span></a>`;
+  }).join("")}</div>`;
+}
+
+const COST_KIND = { llm: "Tiêu thụ", serper: "Serper", scrapecreators: "Scrape Creators (1 credit)" };
+const costTable = (m) => {
+  const rows = m?.costLines || [];
+  if (!rows.length) return "";
+  const body = rows.map((r) => `<tr>
+    <td>${esc(r.model || "")}</td>
+    <td>${esc(COST_KIND[r.kind] || r.kind || "")}${r.detail ? `<div class="hint">${esc(r.detail)}</div>` : ""}</td>
+    <td>${Number(r.tokenIn || 0).toLocaleString()}</td>
+    <td>${Number(r.tokenOut || 0).toLocaleString()}</td>
+    <td>${Number(r.totalTokens || (r.tokenIn || 0) + (r.tokenOut || 0)).toLocaleString()}</td>
+    <td>${Number(r.usd || 0).toFixed(6)} US$</td>
+    <td>${Math.round(Number(r.vnd || 0)).toLocaleString("vi-VN")} ₫</td>
+  </tr>`).join("");
+  const totUsd = rows.reduce((s, r) => s + Number(r.usd || 0), 0);
+  const totVnd = rows.reduce((s, r) => s + Number(r.vnd || 0), 0);
+  return `<table class="cost-table">
+    <thead><tr><th>Model</th><th>Loại</th><th>Token in</th><th>Token out</th><th>Tổng Token</th><th>USD</th><th>VND</th></tr></thead>
+    <tbody>${body}</tbody>
+    <tfoot><tr><td colspan="5">Tổng</td><td>${totUsd.toFixed(6)} US$</td><td>${Math.round(totVnd).toLocaleString("vi-VN")} ₫</td></tr></tfoot>
+  </table>`;
+};
+const metaBar = (m, ms, extra = []) => `<div class="cost-wrap">${costTable(m)}<div class="meta">
+  ${ms != null ? `<div class="stat"><b>${(ms / 1000).toFixed(1)}s</b><span>Thời gian</span></div>` : ""}
+  <div class="stat"><b>${m?.searchCalls ?? 0}</b><span>Serper</span></div>
+  <div class="stat"><b>${m?.llmCalls ?? 0}</b><span>Lần gọi LLM</span></div>
+  <div class="stat"><b>${Number(m?.promptTokens || 0).toLocaleString()} / ${Number(m?.completionTokens || 0).toLocaleString()}</b><span>Token in / out</span></div>
+  ${m?.costVnd != null || m?.costUsd != null ? `<div class="stat"><b>${Number(m.costVnd || 0).toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₫</b><span>Chi phí${m.costUsd ? ` · ${Number(m.costUsd).toFixed(6)} US$` : ""}</span></div>` : ""}
+  <div class="stat"><b>${m?.crawlfeedCredits ?? m?.crawlfeedCalls ?? 0}</b><span>Scrape Creators (credit)</span></div>
+  ${m?.cacheHit != null ? `<div class="stat"><b>${m.cacheHit ? "Có" : "Không"}</b><span>Lấy từ cache</span></div>` : ""}
+  ${m?.totalSources != null ? `<div class="stat"><b>${m.totalSources}</b><span>Nguồn đã xem</span></div>` : ""}
+  ${extra.join("")}</div></div>`;
+const rawJson = (data) => `<details class="raw"><summary>Xem JSON gốc</summary><pre>${esc(JSON.stringify(data, null, 2))}</pre></details>`;
+
+// ---------- result view (shared by name search, image search, history) ----------
+const USER_ID = "cmuyypozi001n01ofu3ojbghd";
+
+class ResultView {
+  constructor(root) { this.root = root; }
+
+  show(data, ctx) {
+    // ctx: {query, filters, searchId, ms, historyId?, single?}
+    this.data = data; this.ctx = ctx; this.sel = 0; this.noMore = false; this.searchPage = 1;
+    this.hist = {};  // candidateId -> historyId
+    if (ctx.historyId) this.hist[data.candidates[0].id] = ctx.historyId;
+    const cands = data.candidates || [];
+    let html = ctx.single ? "" : `<div class="row" style="margin-top:16px">${statusChip(data.status)} <span class="chip">${esc({ deep: "Deep search", preview: "Preview", image: "Tìm bằng ảnh", searchprofile: "Tìm hồ sơ" }[data.mode] || data.mode)}</span> <span class="hint" id="candCount">${cands.length} ứng viên</span></div>${metaBar(data.meta, ctx.ms)}`;
+    if (data.clarificationQuestion) html += `<div class="notice warn">${esc(data.clarificationQuestion)}</div>`;
+    if (data.identified) html += identifiedBlock(data.identified, data.photoWarnings, "AI nhận ra trong ảnh");
+    if (data.warnings?.length) html += `<div class="notice warn">${data.warnings.map(esc).join("<br>")}</div>`;
+    if (data.lensResults) html += `<h3 class="sec">Google Lens (${data.lensInput === "face" ? "đã cắt khuôn mặt" : "cả ảnh"}) · ${data.lensResults.length} trang</h3>${data.lensImageUrl ? `<div class="hint" style="margin-bottom:8px">Ảnh gửi Lens: ${link(data.lensImageUrl, data.lensImageUrl)}<br><img src="${esc(data.lensImageUrl)}" alt="" style="max-height:160px;margin-top:6px;border-radius:8px"></div>` : ""}<div class="panel" style="font-size:13px">${data.lensResults.map(s => `<div>${link(s.url, s.title || host(s.url))} <span class="hint">${esc(s.snippet || host(s.url))}</span></div>`).join("") || `<div class="hint">Không có trang nào.</div>`}</div>`;
+    if (!cands.length) { this.root.innerHTML = html + `<div class="panel empty">Không có ứng viên nào.</div>` + rawJson(data); return; }
+    html += ctx.single ? `<div id="detail"></div>` : `<div class="layout"><div class="list" id="list"></div><div id="detail"></div></div>`;
+    this.root.innerHTML = html + rawJson(data);
+    this.renderList(); this.renderDetail();
+  }
+
+  renderList() {
+    const list = $("#list", this.root); if (!list) return;
+    list.innerHTML = this.data.candidates.map((c, i) => `
+      <button class="item ${i === this.sel ? "active" : ""}" data-i="${i}">
+        ${avatar(c.avatarUrl, c.displayName)}
+        <div style="min-width:0"><div class="name">${esc(c.displayName)}</div>
+          <div class="sub">${esc(c.headline || c.disambiguationNote || "")}</div>
+          <div class="row" style="gap:6px;margin-top:4px"><span class="bar" style="width:70px;height:6px"><i style="width:${Math.round(c.confidence * 100)}%;background:${confColor(c.confidence)}"></i></span><span class="hint">${Math.round(c.confidence * 100)}%</span>
+          ${c.queryFaceMatch != null ? `<span class="chip ${c.queryFaceMatch >= 0.363 ? "ok" : ""}">mặt ${Math.round(c.queryFaceMatch * 100)}%</span>` : ""}</div>
+        </div>
+      </button>`).join("");
+    if (this.data.mode === "searchprofile" && this.ctx?.query) {
+      list.insertAdjacentHTML("beforeend", `<div class="row" style="margin-top:4px;gap:8px;flex-wrap:wrap">
+        <button class="btn ghost" id="morePeople" ${this.noMore ? "disabled" : ""}>${this.noMore ? "Không còn hồ sơ khác" : "Tìm thêm hồ sơ"}</button>
+        <button class="btn ghost" id="refreshPeople" title="Bỏ cache, search lại">Làm mới kết quả</button>
+      </div>`);
+      const more = $("#morePeople", list);
+      if (more && !this.noMore) more.onclick = () => this.morePeople(more);
+      const refresh = $("#refreshPeople", list);
+      if (refresh) refresh.onclick = () => runNameSearch({ refresh: true });
+    }
+    $$(".item", list).forEach(b => b.onclick = () => { this.sel = +b.dataset.i; this.renderList(); this.renderDetail(); });
+  }
+
+  async morePeople(btn) {
+    const have = this.data.candidates || [];
+    const nextPage = (this.searchPage || 1) + 1;
+    btn.disabled = true;
+    btn.textContent = "Đang tìm thêm…";
+    try {
+      const data = await pollSearch(await api("/v1/search-profile", {
+        userId: USER_ID,
+        query: this.ctx.query,
+        filters: this.ctx.filters || {},
+        page: nextPage,
+        excludeUrls: have.flatMap(c => (c.sources || []).map(s => s.url).filter(Boolean)),
+        excludeNames: have.map(c => c.displayName).filter(Boolean),
+      }), (s) => { btn.textContent = `Đang tìm thêm… ${s}`; });
+      this.searchPage = nextPage;
+      const seen = new Set(have.map(c => c.id));
+      const extra = (data.candidates || []).filter(c => c.id && !seen.has(c.id));
+      const prev = this.data.meta || {};
+      this.data.meta = {
+        ...prev,
+        searchCalls: (prev.searchCalls || 0) + (data.meta?.searchCalls || 0),
+        llmCalls: (prev.llmCalls || 0) + (data.meta?.llmCalls || 0),
+        promptTokens: (prev.promptTokens || 0) + (data.meta?.promptTokens || 0),
+        completionTokens: (prev.completionTokens || 0) + (data.meta?.completionTokens || 0),
+        costUsd: (prev.costUsd || 0) + (data.meta?.costUsd || 0),
+        costVnd: (prev.costVnd || 0) + (data.meta?.costVnd || 0),
+        costLines: [...(prev.costLines || []), ...(data.meta?.costLines || [])],
+        totalSources: (prev.totalSources || 0) + (data.meta?.totalSources || 0),
+      };
+      const bar = $(".cost-wrap", this.root);
+      if (bar) bar.outerHTML = metaBar(this.data.meta, this.ctx?.ms);
+      if (!extra.length) {
+        this.noMore = true;
+        btn.textContent = "Không còn hồ sơ khác";
+        return;
+      }
+      this.data.candidates = [...have, ...extra].sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+      this.data.status = this.data.candidates.length === 1 ? "resolved" : "ambiguous";
+      const count = $("#candCount", this.root);
+      if (count) count.textContent = `${this.data.candidates.length} ứng viên`;
+      this.renderList();
+      this.renderDetail();
+      const pre = $("details.raw pre", this.root);
+      if (pre) pre.textContent = JSON.stringify(this.data, null, 2);
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = "Tìm thêm hồ sơ";
+      const msg = $("#actMsg", this.root);
+      if (msg) msg.innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`;
+    }
+  }
+
+  renderDetail() {
+    const c = this.data.candidates[this.sel];
+    // Re-rendering the same person (e.g. after enrichment) keeps an open chat as it is.
+    const oldChat = this.shownId === c.id ? $("#chatWrap", this.root) : null;
+    this.shownId = c.id;
+    const PROFILE_SRC = { wikipedia: "Wikipedia", llm: "AI viết", snippets: "Trích từ kết quả tìm kiếm" };
+    $("#detail", this.root).innerHTML = `<div class="panel">
+      <div class="detail-head">
+        ${avatar(c.avatarUrl || c.photos?.[0]?.url, c.displayName, "lg")}
+        <div style="flex:1;min-width:260px">
+          <h2>${esc(c.displayName)}</h2>
+          <div class="headline">${esc(c.headline || "")}</div>
+          <div class="chips">${(c.platforms || []).map(platformChip).join("")}
+            ${c.aliases?.length ? `<span class="chip">còn gọi là: ${esc(c.aliases.join(", "))}</span>` : ""}
+            ${c.enrichedAt ? `<span class="chip info">hồ sơ đầy đủ</span>` : ""}</div>
+          <div class="conf"><span class="hint">Độ tin cậy</span>${confBar(c.confidence)}
+            ${c.queryFaceMatch != null ? `<span class="chip ${c.queryFaceMatch >= 0.363 ? "ok" : "warn"}">Khớp mặt với ảnh tải lên: ${Math.round(c.queryFaceMatch * 100)}%</span>` : ""}</div>
+          ${c.disambiguationNote ? `<div class="hint">${esc(c.disambiguationNote)}</div>` : ""}
+          <div class="actions">
+            <button class="btn sm" data-act="deep">Tìm sâu</button>
+            <button class="btn ghost sm" data-act="enrich">${c.enrichedAt ? "Viết lại hồ sơ (AI)" : "Viết hồ sơ đầy đủ (AI)"}</button>
+            <button class="btn ghost sm" data-act="photos">Thêm ảnh (so khuôn mặt)</button>
+            <button class="btn ghost sm" data-act="chat">Hỏi đáp về người này</button>
+          </div>
+          <div class="hint" id="actMsg" style="margin-top:6px"></div>
+        </div>
+      </div>
+
+      ${c.keyFacts?.length ? `<h3 class="sec">Thông tin chính</h3><div class="facts">${c.keyFacts.map(f => `
+        <div class="fact"><div class="k">${esc(f.label)}</div><div class="v">${esc(f.value)}</div></div>`).join("")}</div>` : ""}
+
+      ${c.profile?.length ? `<h3 class="sec">Tiểu sử ${c.profileSource ? `<span class="chip">${esc(PROFILE_SRC[c.profileSource] || c.profileSource)}</span>` : ""}</h3>
+        <div class="profile">${c.profile.map(p => `<p>${esc(p)}</p>`).join("")}</div>` : ""}
+
+      ${c.career?.length ? `<h3 class="sec">Quá trình sự nghiệp</h3><ul class="timeline">${c.career.map(x => `
+        <li><div class="when">${esc(x.period || "—")}</div><b>${esc(x.title || "")}</b>${x.organization ? ` · ${esc(x.organization)}` : ""}</li>`).join("")}</ul>` : ""}
+
+      <h3 class="sec">Ảnh <span class="chip">${(c.photos || []).length}</span></h3>
+      <div id="photoBox">${photoGrid(c.photos)}</div>
+
+      ${c.socialSources || c.articleSources ? `
+        <h3 class="sec">Mạng xã hội / trang profile <span class="chip">${(c.socialSources || []).length}</span></h3>
+        ${sourcesList(c.socialSources)}
+        <h3 class="sec">Bài viết <span class="chip">${(c.articleSources || []).length}</span></h3>
+        ${sourcesList(c.articleSources)}
+      ` : `
+        <h3 class="sec">Nguồn <span class="chip">${(c.sources || []).length}</span></h3>
+        ${sourcesList(c.sources)}
+      `}
+
+      ${c.tags?.length ? `<h3 class="sec">Tags</h3><div class="chips">${c.tags.map(t => `<span class="chip">${esc(t)}</span>`).join("")}</div>` : ""}
+      <h3 class="sec">Truy vấn ảnh</h3><div>${link("https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(c.imageSearchQuery), c.imageSearchQuery)}</div>
+
+      <div id="chatWrap"></div>
+    </div>`;
+    $$("[data-act]", this.root).forEach(b => b.onclick = () => this[b.dataset.act](b));
+    if (oldChat?.innerHTML) $("#chatWrap", this.root).replaceWith(oldChat);
+    else if (this.ctx.historyId && this.hist[c.id] === this.ctx.historyId) this.openChat(this.ctx.historyId, this.ctx.messages || []);
+  }
+
+  async ensureHistory() {
+    const c = this.data.candidates[this.sel];
+    if (this.hist[c.id]) return this.hist[c.id];
+    const body = { userId: USER_ID, query: this.ctx.query || c.displayName, filters: this.ctx.filters || {} };
+    let res;
+    if (this.ctx.searchId) {
+      try { res = await api("/v1/history", { ...body, searchId: this.ctx.searchId, candidateId: c.id }); } catch { /* expired: send the candidate */ }
+    }
+    res ||= await api("/v1/history", { ...body, candidate: c });
+    return this.hist[c.id] = res.data.historyId;
+  }
+
+  async deep(btn) {
+    const msg = $("#actMsg", this.root), c = this.data.candidates[this.sel];
+    btn.disabled = true;
+    msg.innerHTML = `<span class="spinner" style="display:inline-block;vertical-align:middle"></span> Đang tìm sâu: tiểu sử, key facts, ảnh mặt, bài viết…`;
+    const t0 = Date.now();
+    try {
+      const data = await pollSearch(await api("/v1/deep-search", { candidate: c, filters: this.ctx.filters || {} }), (s) => {
+        msg.innerHTML = `<span class="spinner" style="display:inline-block;vertical-align:middle"></span> Đang tìm sâu: ${esc(s)}…`;
+      });
+      const next = data.candidate;
+      next.socialSources = data.socialSources || [];
+      next.articleSources = data.articleSources || [];
+      this.data.candidates[this.sel] = next;
+      this.renderList(); this.renderDetail();
+      this.data.meta = data.meta || {};
+      const bar = $(".cost-wrap", this.root);
+      if (bar) bar.outerHTML = metaBar(this.data.meta, this.ctx?.ms);
+      const warn = (data.warnings || []).length ? ` · ${data.warnings.join(" ")}` : "";
+      $("#actMsg", this.root).textContent = `Xong trong ${((Date.now() - t0) / 1000).toFixed(1)}s · LLM ${data.meta.llmCalls} (${data.meta.promptTokens || 0} in / ${data.meta.completionTokens || 0} out) · Serper ${data.meta.searchCalls} · Scrape Creators ${data.meta.crawlfeedCredits || 0} credit · ${(next.photos || []).length} ảnh${warn}`;
+      const pre = $("details.raw pre", this.root);
+      if (pre) pre.textContent = JSON.stringify(this.data, null, 2);
+    } catch (e) { btn.disabled = false; msg.innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }
+  }
+
+  async enrich(btn) {
+    const msg = $("#actMsg", this.root), c = this.data.candidates[this.sel];
+    btn.disabled = true; msg.innerHTML = `<span class="spinner" style="display:inline-block;vertical-align:middle"></span> AI đang viết hồ sơ từ ${c.sources?.length || 0} nguồn…`;
+    const t0 = Date.now();
+    try {
+      const historyId = await this.ensureHistory();
+      const { data } = await api("/v1/profiles/enrich", { historyId, userId: USER_ID, force: !!c.enrichedAt });
+      this.data.candidates[this.sel] = data.candidate;
+      this.renderList(); this.renderDetail();
+      $("#actMsg", this.root).textContent = data.cached ? "Hồ sơ đã có sẵn (không gọi AI)." : `Xong trong ${((Date.now() - t0) / 1000).toFixed(1)}s · ${data.meta.llmCalls} lần gọi AI · đã lưu vào lịch sử.`;
+    } catch (e) { btn.disabled = false; msg.innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }
+  }
+
+  async photos(btn) {
+    const c = this.data.candidates[this.sel], msg = $("#actMsg", this.root);
+    btn.disabled = true; msg.textContent = "Đang tìm ảnh và so khuôn mặt…";
+    try {
+      const { data } = await api("/v1/photos", {
+        query: c.imageSearchQuery, referenceUrl: c.photos?.[0]?.url || c.avatarUrl || null, name: c.displayName, aliases: c.aliases || [],
+        profileUrls: (c.sources || []).map(s => s.url), filters: this.ctx.filters || {}, exclude: (c.photos || []).map(p => p.url), limit: 8,
+      });
+      c.photos = [...(c.photos || []), ...data.photos];
+      $("#photoBox", this.root).innerHTML = photoGrid(c.photos);
+      msg.textContent = data.photos.length
+        ? `+${data.photos.length} ảnh · ${data.meta.searchCalls} lần gọi Search${data.meta.faceChecked ? " · đã so khuôn mặt" : " · CHƯA so được khuôn mặt"}`
+        : "Không tìm thêm được ảnh khớp mặt.";
+      btn.disabled = !data.photos.length;
+    } catch (e) { btn.disabled = false; msg.innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }
+  }
+
+  async chat(btn) {
+    btn.disabled = true;
+    try { this.openChat(await this.ensureHistory(), []); }
+    catch (e) { btn.disabled = false; $("#actMsg", this.root).innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; }
+  }
+
+  openChat(historyId, messages) {
+    const wrap = $("#chatWrap", this.root);
+    wrap.innerHTML = `<h3 class="sec">Hỏi đáp <span class="hint" style="text-transform:none;letter-spacing:0">${esc(historyId)}</span></h3>
+      <div class="chatbox"><div class="chatlog">${messages.length ? messages.map(bubble).join("") : `<div class="hint">Hỏi bất kỳ điều gì về người này. AI trả lời từ hồ sơ, chỉ tìm Google khi cần.</div>`}</div>
+      <form class="chatform"><input type="text" placeholder="Ví dụ: Người này học ở đâu?" maxlength="500" required><button class="btn">Gửi</button></form></div>`;
+    const log = $(".chatlog", wrap), form = $("form", wrap), input = $("input", form), send = $("button", form);
+    log.scrollTop = log.scrollHeight; input.focus();
+    form.onsubmit = async (ev) => {
+      ev.preventDefault();
+      const question = input.value.trim(); if (!question) return;
+      if (!messages.length) log.innerHTML = "";
+      messages.push(1);
+      input.value = ""; send.disabled = true;
+      log.insertAdjacentHTML("beforeend", bubble({ role: "user", content: question }));
+      log.insertAdjacentHTML("beforeend", `<div class="msg assistant"><span class="hint">…</span></div>`);
+      const out = log.lastElementChild; let text = "";
+      log.scrollTop = log.scrollHeight;
+      const CHAT_STAGES = { thinking: "đang suy nghĩ", searching: "đang tìm trên web", answering: "đang trả lời" };
+      try {
+        await chatStream({ historyId, question, userId: USER_ID }, (event, data) => {
+          if (event === "status") out.innerHTML = `<span class="hint">${esc(CHAT_STAGES[data.stage] || data.stage)}${data.queries ? ": " + esc(data.queries.join(" | ")) : ""}…</span>`;
+          else if (event === "reset") text = "";
+          else if (event === "delta") { text += data.text; out.textContent = text; }
+          else if (event === "done") out.outerHTML = bubble({ role: "assistant", content: data.answer, citations: data.citations, answeredFrom: data.answeredFrom, meta: data.meta });
+          else if (event === "error") out.outerHTML = `<div class="msg assistant" style="color:var(--bad)">${esc(data.message)}</div>`;
+          log.scrollTop = log.scrollHeight;
+        });
+      } catch (e) { out.outerHTML = `<div class="msg assistant" style="color:var(--bad)">${esc(e.message)}</div>`; }
+      send.disabled = false; input.focus();
+    };
+  }
+}
+
+function bubble(m) {
+  if (m.role === "user") return `<div class="msg user">${esc(m.content)}</div>`;
+  const cites = (m.citations || []).filter(c => safeUrl(c.url));
+  const from = m.answeredFrom ? `<span class="chip ${m.answeredFrom === "web" ? "info" : ""}">${m.answeredFrom === "web" ? "tìm trên web" : "từ kiến thức"}</span>` : "";
+  const cost = m.meta?.costVnd != null ? ` · ${Number(m.meta.costVnd).toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₫` : "";
+  const tokens = m.meta?.promptTokens != null ? ` · ${Number(m.meta.promptTokens || 0).toLocaleString()} / ${Number(m.meta.completionTokens || 0).toLocaleString()}` : "";
+  const meta = m.meta ? ` · AI ${m.meta.llmCalls} · Search ${m.meta.searchCalls || 0}${tokens}${cost} · ${((m.meta.latencyMs || 0) / 1000).toFixed(1)}s` : "";
+  return `<div class="msg assistant">${esc(m.content)}${cites.length ? `<div class="cites">${cites.map(c => link(c.url, c.title || c.url)).join("")}</div>` : ""}${from || meta ? `<div class="m">${from}${meta}</div>` : ""}${m.meta ? costTable(m.meta) : ""}</div>`;
+}
+
+async function chatStream(body, onEvent) {
+  let { status, data } = await api("/v1/chat", body);
+  let shown = "";
+  while (status === 202) {
+    const text = data.text || "";
+    if (text && text !== shown) {
+      onEvent("reset", {});
+      onEvent("delta", { text });
+      shown = text;
+    } else {
+      onEvent("status", { stage: data.stage, queries: data.queries });
+    }
+    await sleep(700);
+    ({ status, data } = await api(data.resultUrl || `/v1/people-search/${data.searchId}`, null, "GET"));
+  }
+  if (!data.answer) throw new Error(data.error || data.message || "empty answer");
+  onEvent("done", data);
+}
+
+function socialMini(sources) {
+  return `<div class="socmini">${sources.map(s => {
+    const [color, label] = PLATFORM[s.type] || PLATFORM.web;
+    const handle = new URL(s.url, "http://x").pathname.replace(/^\/|\/$/g, "") || host(s.url);
+    return `<a href="${esc(safeUrl(s.url) || "#")}" target="_blank" rel="noopener noreferrer" title="${esc(s.title || "")}">
+      <span class="ico" style="background:${color}">${esc(label)}</span><span><b>${esc(s.type)}</b><br><span class="hint">${esc(handle)}</span></span></a>`;
+  }).join("")}</div>`;
+}
+
+function identifiedBlock(people, warnings, title, notes = []) {
+  const w = (warnings || []).length ? ` <span class="chip warn">cảnh báo: ${esc(warnings.join(", "))}</span>` : "";
+  const n = notes.length ? `<div class="notice warn">${notes.map(esc).join("<br>")}</div>` : "";
+  if (!people.length) return `<h3 class="sec">${esc(title)}${w}</h3>${n}<div class="panel empty">AI không nhận ra người nổi tiếng nào.</div>`;
+  return `<h3 class="sec">${esc(title)}${w}</h3>${n}<div class="people">${people.map(p => {
+    const photos = (p.photos || []).filter(ph => safeUrl(ph.url));
+    const socials = p.socialSources || [];
+    const searched = photos.length || socials.length;
+    return `
+    <div class="person">
+      <div class="phead">${avatar(photos[0]?.url, p.displayName, "lg")}<div style="min-width:0">
+        <h4>${esc(p.displayName)}</h4>
+        <div class="hint">${esc(p.headline || p.occupation || "")}</div>
+        <div class="conf"><span class="hint">Tin cậy</span>${confBar(p.confidence)}</div>
+      </div></div>
+      ${p.disambiguationNote ? `<div style="font-size:14px">${esc(p.disambiguationNote)}</div>` : ""}
+      <div class="chips" style="margin-top:8px">${p.nationality ? `<span class="chip">${esc(p.nationality)}</span>` : ""}${p.knownFor ? `<span class="chip">${esc(p.knownFor)}</span>` : ""}${(p.aliases || []).map(a => `<span class="chip">${esc(a)}</span>`).join("")}</div>
+      ${photos.length > 1 ? `<div class="plabel">Ảnh (image search, chưa so khuôn mặt)</div>${photoGrid(photos.slice(1))}` : ""}
+      ${socials.length ? `<div class="plabel">Mạng xã hội (đã tìm thấy)</div>${socialMini(socials)}` : searched ? `<div class="plabel">Mạng xã hội</div><div class="hint">Không tìm thấy tài khoản khớp tên.</div>` : ""}
+      ${p.sourceUrls?.length ? `<div class="plabel">Link AI nhớ</div><div style="font-size:13px">${p.sourceUrls.map(u => `<div>${link(u, host(u))}</div>`).join("")}</div>` : ""}
+      <div class="actions"><button class="btn ghost sm" data-deep="${esc(p.displayName)}">Deep search tên này</button></div>
+    </div>`;
+  }).join("")}</div>`;
+}
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-deep]"); if (!b) return;
+  showTab("name");
+  const f = $("#nameForm"); f.elements.query.value = b.dataset.deep; f.requestSubmit();
+});
+
+// ---------- name search ----------
+const nameView = new ResultView($("#nameOut"));
+const nameStatus = statusLine($("#nameStatus"));
+async function runNameSearch({ refresh = false } = {}) {
+  const f = $("#nameForm");
+  const submitBtn = $("button[type=submit]", f);
+  const refreshBtn = $("#nameRefresh");
+  const query = f.elements.query.value.trim();
+  if (query.length < 2) return;
+  const filters = readFilters(f), t0 = Date.now();
+  submitBtn.disabled = true;
+  if (refreshBtn) refreshBtn.disabled = true;
+  $("#nameOut").innerHTML = "";
+  nameStatus.run(refresh ? "Đang làm mới (bỏ cache)…" : "Đang tìm hồ sơ (tối đa 3 lần search, rồi AI gộp)…", t0);
+  try {
+    const data = await pollSearch(
+      await api("/v1/search-profile", { userId: USER_ID, query, filters, refresh: !!refresh }),
+      (s) => nameStatus.run(`Đang chạy: ${s}`, t0),
+    );
+    const hit = data.meta?.cacheHit ? " · từ cache" : "";
+    nameStatus.done(`${refresh ? "Đã làm mới" : "Hoàn tất"} "${query}"${hit}`);
+    nameView.show(data, { query, filters, searchId: data.searchId, ms: Date.now() - t0 });
+  } catch (e) {
+    nameStatus.clear();
+    $("#nameOut").innerHTML = `<div class="notice bad">${esc(e.message)}</div>`;
+  }
+  submitBtn.disabled = false;
+  if (refreshBtn) refreshBtn.disabled = false;
+}
+$("#nameForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  await runNameSearch({ refresh: false });
+};
+$("#nameRefresh").onclick = () => runNameSearch({ refresh: true });
+
+// ---------- image search ----------
+const imageView = new ResultView($("#imageOut"));
+const imageStatus = statusLine($("#imageStatus"));
+let imageFile = null;
+const drop = $("#drop"), fileInput = $("input[type=file]", drop);
+drop.onclick = () => fileInput.click();
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) pickImage(e.dataTransfer.files[0]); };
+fileInput.onchange = () => fileInput.files[0] && pickImage(fileInput.files[0]);
+function pickImage(file) {
+  imageFile = file;
+  $("#dropText").innerHTML = `<img src="${URL.createObjectURL(file)}" alt=""><div style="margin-top:8px"><b>${esc(file.name)}</b> · ${(file.size / 1024).toFixed(0)} KB<div class="hint">Bấm để đổi ảnh</div></div>`;
+}
+function imageForm() {
+  if (!imageFile) throw new Error("Hãy chọn một ảnh trước.");
+  const f = $("#imageForm"), fd = new FormData();
+  fd.append("image", imageFile);
+  fd.append("userId", USER_ID);
+  const filters = readFilters(f);
+  if (Object.keys(filters).length) fd.append("filters", JSON.stringify(filters));
+  const caption = f.elements.caption.value.trim();
+  if (caption) fd.append("caption", caption);
+  const w = $$("input[name=w]:checked", f).map(i => i.value);
+  if (w.length) fd.append("photoWarnings", w.join(","));
+  return { fd, filters };
+}
+$("#imageForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const btn = $("button[type=submit]", ev.target), t0 = Date.now();
+  $("#imageOut").innerHTML = "";
+  try {
+    const { fd, filters } = imageForm();
+    btn.disabled = true; imageStatus.run("AI đang nhận diện ảnh…", t0);
+    const data = await pollSearch(await api("/v1/people-search/image", fd), (s) => imageStatus.run(`Đang chạy: ${s}`, t0));
+    imageStatus.done("Hoàn tất tìm bằng ảnh");
+    imageView.show(data, { query: data.identified?.[0]?.displayName || "photo search", filters, searchId: data.searchId, ms: Date.now() - t0 });
+  } catch (e) { imageStatus.clear(); $("#imageOut").innerHTML = `<div class="notice bad">${esc(e.message)}</div>`; }
+  btn.disabled = false;
+};
+$("#identifyOnly").onclick = async () => {
+  const btn = $("#identifyOnly"), t0 = Date.now();
+  $("#imageOut").innerHTML = "";
+  try {
+    const { fd } = imageForm();
+    btn.disabled = true; imageStatus.run("AI đang nhận diện ảnh…", t0);
+    const { data } = await api("/v1/identify/image", fd);
+    imageStatus.done("Đã nhận diện");
+    $("#imageOut").innerHTML = metaBar(data.meta, Date.now() - t0) + identifiedBlock(data.candidates, data.photoWarnings, "AI nhận ra trong ảnh", data.warnings) + rawJson(data);
+  } catch (e) { imageStatus.clear(); $("#imageOut").innerHTML = `<div class="notice bad">${esc(e.message)}</div>`; }
+  btn.disabled = false;
+};
+
+// ---------- steps ----------
+const STEPS = {
+  identify: {
+    title: "Nhận diện theo tên", cost: "1 AI · 2-3 search/người", path: "/v1/identify",
+    help: "AI cho biết tên này có thể là ai, rồi search mạng xã hội + ảnh cho tối đa 3 người khả năng cao nhất. Bỏ tick để chỉ gọi AI (0 search).",
+    fields: [["query", "Tên", "Sơn Tùng M-TP", true]], filters: true,
+    checks: [["withSources", "Tìm ảnh + mạng xã hội", true]],
+    body: (v, filters) => ({ query: v.query, filters, withSources: v.withSources }),
+    render: (d) => identifiedBlock(d.candidates, null, "Kết quả", d.warnings),
+  },
+  social: {
+    title: "Profile mạng xã hội", cost: "1–2 search", path: "/v1/sources/social",
+    help: "Mỗi mạng xã hội lấy 1 profile có tiêu đề chứa tên. Nếu có nghề nghiệp, tìm thêm YouTube/Instagram/TikTok mô tả đúng nghề.",
+    fields: [["name", "Tên", "Sơn Tùng M-TP", true], ["aliases", "Tên khác (cách nhau dấu phẩy)", "Nguyễn Thanh Tùng"], ["occupation", "Nghề nghiệp", "Singer"]],
+    checks: [["withIdentity", "Tìm thêm theo nghề nghiệp", true]], filters: true,
+    body: (v, filters) => ({ name: v.name, aliases: v.aliases ? v.aliases.split(",").map(s => s.trim()).filter(Boolean) : [], occupation: v.occupation || null, withIdentity: v.withIdentity, filters }),
+    render: (d) => `<h3 class="sec">Profile tìm được <span class="chip">${d.sources.length}</span></h3>` + sourcesList(d.sources),
+  },
+  web: {
+    title: "Trang web nói về người đó", cost: "1 search", path: "/v1/sources/web",
+    help: "Tìm tên (+ địa điểm) trên Google, chỉ giữ trang thật sự nói về tên đó.",
+    fields: [["name", "Tên", "Sơn Tùng M-TP", true], ["limit", "Tối đa", "8"]],
+    checks: [["includeNews", "Giữ cả trang báo", false]], filters: true,
+    body: (v, filters) => ({ name: v.name, limit: +v.limit || 8, includeNews: v.includeNews, filters }),
+    render: (d) => `<h3 class="sec">Trang tìm được <span class="chip">${d.sources.length}</span></h3>` + sourcesList(d.sources),
+  },
+  images: {
+    title: "Tìm ảnh thô", cost: "1 search", path: "/v1/images/search",
+    help: "Google Images, không so khuôn mặt. Nếu nhập tên thì bỏ ảnh không có tên trong tiêu đề/URL.",
+    fields: [["query", "Truy vấn ảnh", "Son Tung M-TP Vietnamese singer", true], ["name", "Tên (lọc)", "Sơn Tùng"], ["limit", "Tối đa", "6"]],
+    body: (v) => ({ query: v.query, name: v.name || null, limit: +v.limit || 6 }),
+    render: (d) => `<h3 class="sec">Ảnh <span class="chip">${d.photos.length}</span></h3>` + photoGrid(d.photos),
+  },
+  sourcePhotos: {
+    title: "Ảnh từ trang nguồn", cost: "0 search · 0 AI", path: "/v1/photos/from-sources",
+    help: "Mở các trang nguồn để lấy ảnh: ảnh đầu bài Wikipedia, avatar GitHub, ảnh đại diện (og:image) của website/YouTube. Bỏ qua Facebook/Instagram/TikTok/X/LinkedIn. Có model khuôn mặt thì bỏ logo/banner và ảnh người khác.",
+    fields: [["name", "Tên", "Sơn Tùng M-TP", true], ["urls", "Link nguồn (cách nhau dấu phẩy hoặc xuống dòng)", "https://vi.wikipedia.org/wiki/Sơn_Tùng_M-TP", true]],
+    body: (v) => ({
+      name: v.name,
+      sources: v.urls.split(/[\s,]+/).filter(u => /^https?:\/\//.test(u)).map(url => ({ url, type: /wikipedia\.org\/wiki\//.test(url) ? "wikipedia" : "website", verified: true })),
+    }),
+    render: (d) => `<h3 class="sec">Ảnh <span class="chip">${d.photos.length}</span> ${d.faceChecked ? `<span class="chip ok">đã so khuôn mặt</span>` : `<span class="chip warn">chưa so khuôn mặt</span>`}</h3>` + photoGrid(d.photos),
+  },
+};
+let curStep = "identify";
+const stepStatus = statusLine($("#stepStatus"));
+$("#stepList").innerHTML = Object.entries(STEPS).map(([k, s]) => `<button class="step" data-step="${k}"><b>${esc(s.title)}</b><span>${esc(s.path)} · ${esc(s.cost)}</span></button>`).join("");
+$$(".step").forEach(b => b.onclick = () => selectStep(b.dataset.step));
+function selectStep(k) {
+  curStep = k; const s = STEPS[k];
+  $$(".step").forEach(b => b.classList.toggle("active", b.dataset.step === k));
+  $("#stepForm").innerHTML = `<h3 class="sec">${esc(s.title)} <span class="chip info">${esc(s.cost)}</span></h3>
+    <div class="hint" style="margin-bottom:12px">${esc(s.help)} <code>POST ${esc(s.path)}</code></div>
+    <div class="grid-filters" style="margin-top:0">${s.fields.map(([n, l, ph, req]) => `<label class="f">${esc(l)}<input type="text" name="${n}" placeholder="${esc(ph)}" ${req ? "required" : ""}></label>`).join("")}</div>
+    ${(s.checks || []).map(([n, l, on]) => `<label style="display:block;margin-top:10px"><input type="checkbox" name="${n}" ${on ? "checked" : ""}> ${esc(l)}</label>`).join("")}
+    ${s.filters ? `<details class="filters"><summary>Bộ lọc (tùy chọn)</summary><div class="grid-filters">${FILTERS.filter(([k2]) => !s.fields.some(([n]) => n === k2)).map(([k2, l]) => `<label class="f">${l}<input type="text" data-f="${k2}"></label>`).join("")}</div></details>` : ""}
+    <div style="margin-top:14px"><button class="btn" type="submit">Chạy</button></div>`;
+  $("#stepOut").innerHTML = ""; stepStatus.clear();
+}
+$("#stepForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const f = ev.target, s = STEPS[curStep], btn = $("button[type=submit]", f), t0 = Date.now();
+  const v = {};
+  for (const [n] of s.fields) v[n] = f.elements[n].value.trim();
+  for (const [n] of s.checks || []) v[n] = f.elements[n].checked;
+  btn.disabled = true; $("#stepOut").innerHTML = ""; stepStatus.run("Đang chạy…", t0);
+  try {
+    const { data } = await api(s.path, s.body(v, readFilters(f)));
+    stepStatus.done(`${s.title}: xong`);
+    $("#stepOut").innerHTML = metaBar(data.meta, Date.now() - t0) + s.render(data) + rawJson(data);
+  } catch (e) { stepStatus.clear(); $("#stepOut").innerHTML = `<div class="notice bad">${esc(e.message)}</div>`; }
+  btn.disabled = false;
+};
+selectStep("identify");
+
+// ---------- history ----------
+const histView = new ResultView($("#histOut"));
+async function loadHistory() {
+  try {
+    const { data } = await api(`/v1/history?userId=${encodeURIComponent(USER_ID)}`);
+    $("#histList").innerHTML = data.length ? data.map(h => `
+      <div class="hist" data-hist="${esc(h.id)}">
+        ${avatar(h.avatarUrl, h.displayName)}
+        <div style="flex:1;min-width:0"><b>${esc(h.displayName)}</b><div class="hint">"${esc(h.query)}" · ${h.messageCount} tin nhắn</div>
+          <div class="hint" style="font-size:12px">${esc(new Date(h.updatedAt).toLocaleString("vi-VN"))}</div></div>
+        <button class="btn ghost sm" data-del="${esc(h.id)}" title="Xoá">✕</button>
+      </div>`).join("") : "Chưa có gì. Hãy tìm một người rồi bấm “Viết hồ sơ” hoặc “Hỏi đáp”.";
+  } catch (e) { $("#histList").textContent = e.message; }
+}
+$("#histList").onclick = async (ev) => {
+  const del = ev.target.closest("[data-del]");
+  if (del) {
+    ev.stopPropagation();
+    if (!confirm("Xoá bản ghi này và toàn bộ tin nhắn?")) return;
+    await api(`/v1/history/${encodeURIComponent(del.dataset.del)}?userId=${encodeURIComponent(USER_ID)}`, null, "DELETE").catch(() => {});
+    return loadHistory();
+  }
+  const item = ev.target.closest("[data-hist]"); if (!item) return;
+  $$(".hist").forEach(h => h.style.borderColor = h === item ? "var(--accent)" : "");
+  try {
+    const { data } = await api(`/v1/history/${encodeURIComponent(item.dataset.hist)}?userId=${encodeURIComponent(USER_ID)}`);
+    histView.show({ status: "resolved", mode: "history", meta: {}, candidates: [data.candidate] },
+      { query: data.query, filters: data.filters, historyId: data.id, messages: data.messages, single: true });
+  } catch (e) { $("#histOut").innerHTML = `<div class="notice bad">${esc(e.message)}</div>`; }
+};
+
+health();
+</script>
+</body>
+</html>

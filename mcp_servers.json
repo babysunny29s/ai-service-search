@@ -1,0 +1,18 @@
+{
+  "servers": [
+    {
+      "name": "serper",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "serper_mcp.server"],
+      "env": ["SERPER_API_KEY"],
+      "tools": {
+        "web_search": "web_search",
+        "image_search": "image_search",
+        "lens_search": "lens_search"
+      },
+      "timeout_s": 90,
+      "enabled": true
+    }
+  ]
+}

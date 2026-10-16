@@ -1,0 +1,17 @@
+services:
+  worker:
+    build:
+      context: .
+      target: worker
+    image: ai-service-search-worker
+    pull_policy: build
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - worker-data:/app/data
+      - worker-models:/app/models
+
+volumes:
+  worker-data:
+  worker-models:

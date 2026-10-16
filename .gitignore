@@ -1,0 +1,33 @@
+# Local secrets; keep the shareable template in Git.
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Python environments and generated files.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Build and runtime artifacts.
+build/
+dist/
+*.egg-info/
+*.log
+data/
+
+# Large model files are supplied separately from source control.
+models/*.onnx
+
+# OS metadata.
+.DS_Store
+Thumbs.db
